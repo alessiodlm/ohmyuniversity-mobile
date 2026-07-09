@@ -2,6 +2,12 @@ import 'package:dio/dio.dart';
 
 import '../config/api_config.dart';
 
+const _publicAuthPaths = {
+  '/v1/auth/login',
+  '/v1/auth/refresh',
+  '/v1/auth/logout',
+};
+
 class ApiClient {
   ApiClient(Future<String?> Function() readAccessToken)
     : dio = Dio(
@@ -17,7 +23,7 @@ class ApiClient {
     dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
-          if (options.path.startsWith('/v1/auth/')) {
+          if (_publicAuthPaths.contains(options.path)) {
             handler.next(options);
             return;
           }
