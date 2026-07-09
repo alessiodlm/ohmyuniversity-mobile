@@ -6,8 +6,9 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../config/routes/app_routes.dart';
 import '../../config/theme/app_colors.dart';
 import '../../core/usecases/usecase.dart';
+import '../../features/academics/presentation/providers/career_data_providers.dart';
+import '../../features/auth/presentation/mappers/career_account_mapper.dart';
 import '../../features/auth/presentation/providers/auth_provider.dart';
-import '../../features/profile/domain/entities/student_badge_entity.dart';
 import '../../features/profile/presentation/providers/student_badge_providers.dart';
 import '../widgets/avatar_profile_panel/avatar_profile_panel_widget.dart';
 
@@ -19,37 +20,23 @@ class AppTopBar extends ConsumerWidget implements PreferredSizeWidget {
   @override
   Size get preferredSize => const Size.fromHeight(78);
 
-  static AccountEntry _activeAccount(
-    StudentBadgeEntity? badge,
-    String? photoSrc,
-  ) {
-    return AccountEntry(
-      id: badge?.studentNumber.isNotEmpty == true
-          ? badge!.studentNumber
-          : 'active-profile',
-      name: badge?.fullName.isNotEmpty == true ? badge!.fullName : 'Profilo',
-      email: badge?.studentNumber.isNotEmpty == true
-          ? 'Matricola ${badge!.studentNumber}'
-          : 'Profilo attivo',
-      courseLabel: badge?.courseName.isNotEmpty == true
-          ? badge!.courseName
-          : 'Corso non disponibile',
-      universityLabel: badge?.universityName.isNotEmpty == true
-          ? badge!.universityName
-          : 'Ateneo non disponibile',
-      courseAcronym: badge?.courseCode.isNotEmpty == true
-          ? badge!.courseCode
-          : 'AM',
-      avatarSrc: photoSrc,
-      status: AccountStatus.active,
-      isCurrent: true,
-    );
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final badge = ref.watch(studentBadgeProvider).value;
+    final session = ref.watch(authSessionProvider).value;
     final photoSrc = ref.watch(studentProfilePhotoProvider).value;
+
+    final accounts = session == null
+        ? const <AccountEntry>[]
+        : session.profiles
+              .map(
+                (profile) => mapCareerProfileToAccountEntry(
+                  profile,
+                  fullName: session.fullName,
+                  email: session.username,
+                  avatarSrc: profile.active ? photoSrc : null,
+                ),
+              )
+              .toList(growable: false);
 
     return Material(
       color: AppColors.secondary.withValues(alpha: 0.38),
@@ -73,7 +60,7 @@ class AppTopBar extends ConsumerWidget implements PreferredSizeWidget {
               _TopBarGroup(
                 children: [
                   AvatarProfilePanelWidget(
-                    accounts: [_activeAccount(badge, photoSrc)],
+                    accounts: accounts,
                     position: PanelPosition.right,
                     animation: PanelAnimation.ios,
                     showSettings: false,
@@ -81,7 +68,25 @@ class AppTopBar extends ConsumerWidget implements PreferredSizeWidget {
                     showAddAccount: false,
                     onProfileClick: () =>
                         context.pushNamed(AppRoutes.profileName),
-                    onAccountSwitch: (_) {},
+                    onAccountSwitch: (account) async {
+                      if (session == null) return;
+
+                      final profile = findCareerProfileById(
+                        session.profiles,
+                        account.id,
+                      );
+                      if (profile == null || profile.active) {
+                        return;
+                      }
+
+                      await ref
+                          .read(authSessionProvider.notifier)
+                          .switchCareer(profile);
+
+                      ref.invalidate(careerSnapshotProvider);
+                      ref.invalidate(studentBadgeProvider);
+                      ref.invalidate(studentProfilePhotoProvider);
+                    },
                     onLogoutClick: () async {
                       await ref
                           .read(logoutUseCaseProvider)
