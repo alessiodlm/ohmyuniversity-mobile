@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -6,10 +8,14 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../config/routes/app_routes.dart';
 import '../../config/theme/app_colors.dart';
 import '../../core/usecases/usecase.dart';
+import '../../features/academics/presentation/providers/appeals_controller.dart';
 import '../../features/academics/presentation/providers/career_data_providers.dart';
+import '../../features/academics/presentation/providers/questionnaires_provider.dart';
+import '../../features/academics/presentation/providers/tuition_providers.dart';
 import '../../features/auth/presentation/mappers/career_account_mapper.dart';
 import '../../features/auth/presentation/providers/auth_provider.dart';
 import '../../features/profile/presentation/providers/student_badge_providers.dart';
+import '../../features/timetable/presentation/providers/timetable_providers.dart';
 import '../widgets/avatar_profile_panel/avatar_profile_panel_widget.dart';
 
 class AppTopBar extends ConsumerWidget implements PreferredSizeWidget {
@@ -87,14 +93,28 @@ class AppTopBar extends ConsumerWidget implements PreferredSizeWidget {
                       await ref
                           .read(authSessionProvider.notifier)
                           .switchCareer(profile);
+
                       ref.invalidate(careerSnapshotProvider);
                       ref.invalidate(studentBadgeProvider);
                       ref.invalidate(studentProfilePhotoProvider);
+                      ref.invalidate(tuitionSnapshotProvider);
+                      ref.invalidate(remoteQuestionnairesProvider);
+                      ref.invalidate(studentTimetablesProvider);
+                      ref.invalidate(suggestedExamsProvider);
+
+                      ref.invalidate(appealsControllerProvider);
+                      final appealsNotifier = ref.read(
+                        appealsControllerProvider.notifier,
+                      );
+                      unawaited(appealsNotifier.loadAvailableAppeals());
+                      unawaited(appealsNotifier.loadBookingHistory());
                     },
                     onLogoutClick: () async {
                       await ref
                           .read(logoutUseCaseProvider)
                           .call(const NoParams());
+
+                      ref.invalidate(authSessionProvider);
 
                       if (!context.mounted) return;
 
