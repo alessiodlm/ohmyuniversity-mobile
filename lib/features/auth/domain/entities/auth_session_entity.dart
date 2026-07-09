@@ -1,3 +1,4 @@
+import '../../../../core/utils/jwt_claims.dart';
 import 'career_profile_entity.dart';
 
 class AuthSessionEntity {
@@ -24,7 +25,24 @@ class AuthSessionEntity {
     cognome,
   ].where((value) => value.trim().isNotEmpty).join(' ').trim();
 
-  CareerProfileEntity? get activeProfile =>
-      profiles.where((profile) => profile.active).firstOrNull ??
-      profiles.firstOrNull;
+  CareerProfileEntity? get activeProfile {
+    final claims = decodeJwtClaims(accessToken);
+    final stuId = _claimAsInt(claims, 'stuId');
+    final matId = _claimAsInt(claims, 'matId');
+
+    if (stuId != null && matId != null) {
+      final match = profiles
+          .where((p) => p.studentId == stuId && p.enrollmentId == matId)
+          .firstOrNull;
+      if (match != null) return match;
+    }
+
+    return profiles.firstOrNull;
+  }
+
+  int? _claimAsInt(Map<String, dynamic>? claims, String key) {
+    final value = claims?[key];
+    if (value == null) return null;
+    return (value as num).toInt();
+  }
 }

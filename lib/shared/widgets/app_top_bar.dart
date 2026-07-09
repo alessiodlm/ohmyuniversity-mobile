@@ -25,18 +25,22 @@ class AppTopBar extends ConsumerWidget implements PreferredSizeWidget {
     final session = ref.watch(authSessionProvider).value;
     final photoSrc = ref.watch(studentProfilePhotoProvider).value;
 
+    final activeId = session?.activeProfile == null
+        ? null
+        : careerAccountId(session!.activeProfile!);
+
     final accounts = session == null
         ? const <AccountEntry>[]
-        : session.profiles
-              .map(
-                (profile) => mapCareerProfileToAccountEntry(
-                  profile,
-                  fullName: session.fullName,
-                  email: session.username,
-                  avatarSrc: profile.active ? photoSrc : null,
-                ),
-              )
-              .toList(growable: false);
+        : session.profiles.map((profile) {
+            final isCurrent = careerAccountId(profile) == activeId;
+            return mapCareerProfileToAccountEntry(
+              profile,
+              fullName: session.fullName,
+              email: session.username,
+              isCurrent: isCurrent,
+              avatarSrc: isCurrent ? photoSrc : null,
+            );
+          }).toList(growable: false);
 
     return Material(
       color: AppColors.secondary.withValues(alpha: 0.38),
@@ -75,14 +79,14 @@ class AppTopBar extends ConsumerWidget implements PreferredSizeWidget {
                         session.profiles,
                         account.id,
                       );
-                      if (profile == null || profile.active) {
+                      if (profile == null) return;
+                      if (careerAccountId(profile) == activeId) {
                         return;
                       }
 
                       await ref
                           .read(authSessionProvider.notifier)
                           .switchCareer(profile);
-
                       ref.invalidate(careerSnapshotProvider);
                       ref.invalidate(studentBadgeProvider);
                       ref.invalidate(studentProfilePhotoProvider);

@@ -15,15 +15,9 @@ CareerProfileEntity? findCareerProfileById(
 }
 
 AccountStatus _statusFor(CareerProfileEntity profile) {
-  final code = profile.studentStatus.trim().toUpperCase();  // rinuncia// rinuncia
-  return switch (code) {
-    'RN' => AccountStatus.withdrawn,
-    'TR' => AccountStatus.withdrawn,
-    'LA' => AccountStatus.graduated,
-    'SO' => AccountStatus.suspended,
-    'FC' => AccountStatus.warning,
-    _ => AccountStatus.active,
-  };
+  if (profile.graduated) return AccountStatus.graduated;
+  if (profile.active) return AccountStatus.active;
+  return AccountStatus.warning;
 }
 
 String _acronymFor(String courseTypeCode) {
@@ -42,6 +36,7 @@ AccountEntry mapCareerProfileToAccountEntry(
   CareerProfileEntity profile, {
   required String fullName,
   required String email,
+  required bool isCurrent,
   String? avatarSrc,
 }) {
   return AccountEntry(
@@ -53,6 +48,6 @@ AccountEntry mapCareerProfileToAccountEntry(
     courseAcronym: _acronymFor(profile.courseTypeCode),
     avatarSrc: avatarSrc,
     status: _statusFor(profile),
-    isCurrent: profile.active,
+    isCurrent: isCurrent,
   );
 }

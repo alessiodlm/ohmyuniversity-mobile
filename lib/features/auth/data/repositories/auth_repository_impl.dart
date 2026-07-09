@@ -1,8 +1,7 @@
-import 'dart:convert';
-
 import '../../domain/entities/auth_session_entity.dart';
 import '../../domain/entities/career_profile_entity.dart';
 import '../../domain/repositories/auth_repository.dart';
+import '../../../../core/utils/jwt_claims.dart';
 import '../datasources/auth_local_datasource.dart';
 import '../datasources/auth_remote_datasource.dart';
 import '../models/auth_session_model.dart';
@@ -41,18 +40,7 @@ class AuthRepositoryImpl implements AuthRepository {
       profile: selectedProfile,
     );
 
-    final profiles = session.profiles
-        .map(
-          (item) => CareerProfileModel.fromEntity(
-            item,
-          ).copyWith(active: _sameCareer(item, selectedProfile)),
-        )
-        .toList(growable: false);
-
-    final updatedSession = session.copyWith(
-      accessToken: accessToken,
-      profiles: profiles,
-    );
+    final updatedSession = session.copyWith(accessToken: accessToken);
     await _localDataSource.saveSession(updatedSession);
     return updatedSession;
   }
@@ -81,7 +69,7 @@ class AuthRepositoryImpl implements AuthRepository {
       return false;
     }
 
-    final claims = _accessTokenClaims(session.accessToken);
+    final claims = decodeJwtClaims(session.accessToken);
     if (claims == null || !_hasSessionClaims(claims)) {
       await _localDataSource.clearSession();
       return false;
@@ -104,25 +92,6 @@ class AuthRepositoryImpl implements AuthRepository {
       return true;
     } catch (_) {
       return false;
-    }
-  }
-
-  bool _sameCareer(CareerProfileEntity left, CareerProfileEntity right) {
-    return left.studentId == right.studentId &&
-        left.enrollmentId == right.enrollmentId &&
-        left.studentNumber == right.studentNumber;
-  }
-
-  Map<String, dynamic>? _accessTokenClaims(String token) {
-    try {
-      final parts = token.split('.');
-      if (parts.length != 3) return null;
-      final payload = utf8.decode(
-        base64Url.decode(base64Url.normalize(parts[1])),
-      );
-      return jsonDecode(payload) as Map<String, dynamic>;
-    } catch (_) {
-      return null;
     }
   }
 
