@@ -39,9 +39,6 @@ class _UniversityLoginFormState extends ConsumerState<UniversityLoginForm> {
   bool get _domainUnavailable =>
       _selectedUniversity != null && _selectedUniversity!.emailDomains.isEmpty;
 
-  bool get _integrationUnavailable =>
-      _selectedUniversity != null && _selectedUniversity!.id != 'unimol';
-
   String get _emailError {
     final university = _selectedUniversity;
     final email = _emailController.text.trim();
@@ -58,7 +55,6 @@ class _UniversityLoginFormState extends ConsumerState<UniversityLoginForm> {
   bool get _canSubmit =>
       _selectedUniversity != null &&
       !_domainUnavailable &&
-      !_integrationUnavailable &&
       _emailController.text.trim().isNotEmpty &&
       _emailError.isEmpty &&
       _passwordController.text.trim().isNotEmpty;
@@ -202,17 +198,6 @@ class _UniversityLoginFormState extends ConsumerState<UniversityLoginForm> {
             color: TextColor.warning,
           ),
         ],
-        if (_integrationUnavailable) ...[
-          const SizedBox(height: 8),
-          const CustomTextWidget(
-            key: Key('university-integration-unavailable'),
-            text:
-                'L\'integrazione reale è attualmente disponibile solo per '
-                'l\'Università degli Studi del Molise.',
-            variant: TextVariant.bodySm,
-            color: TextColor.warning,
-          ),
-        ],
         const SizedBox(height: 16),
         CustomInputWidget(
           key: const Key('university-email'),
@@ -222,8 +207,7 @@ class _UniversityLoginFormState extends ConsumerState<UniversityLoginForm> {
           placeholder: 'nome.cognome@studenti.ateneo.it',
           disabled:
               _selectedUniversity == null ||
-              _domainUnavailable ||
-              _integrationUnavailable,
+              _domainUnavailable,
           errorMessage: _emailError,
           onChanged: (_) => setState(() {}),
           onSubmitted: (_) => _submit(),
@@ -237,8 +221,7 @@ class _UniversityLoginFormState extends ConsumerState<UniversityLoginForm> {
           placeholder: '••••••••',
           disabled:
               _selectedUniversity == null ||
-              _domainUnavailable ||
-              _integrationUnavailable,
+              _domainUnavailable,
           onChanged: (_) => setState(() {}),
           onSubmitted: (_) => _submit(),
         ),
