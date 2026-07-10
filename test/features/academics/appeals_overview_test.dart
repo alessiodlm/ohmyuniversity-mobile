@@ -238,7 +238,4 @@ class _MockAppealsController extends AppealsController {
 
   @override
   Future<void> loadAvailableAppeals() async {}
-
-  @override
-  Future<void> loadBookingHistory() async {}
 }

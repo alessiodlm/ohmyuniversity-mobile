@@ -8,9 +8,7 @@ void main() {
   test('switch career delegates selected profile to repository', () async {
     final repository = _FakeAuthRepository();
     final useCase = SwitchCareerUseCase(repository);
-
     final session = await useCase(_profile);
-
     expect(repository.lastProfile, same(_profile));
     expect(session.activeProfile, same(_profile));
   });
@@ -68,4 +66,5 @@ const _profile = CareerProfileEntity(
   courseDurationYears: 3,
   academicYear: 2026,
   active: true,
+  graduated: false,
 );

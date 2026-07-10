@@ -12,7 +12,6 @@ import 'package:ohmyuniversity/features/auth/presentation/pages/login_page.dart'
 import 'package:ohmyuniversity/features/auth/presentation/providers/auth_provider.dart';
 import 'package:ohmyuniversity/features/auth/presentation/widgets/university_search_select.dart';
 import 'package:ohmyuniversity/features/academics/domain/entities/career_snapshot_entity.dart';
-import 'package:ohmyuniversity/features/academics/domain/entities/exam_booking_entity.dart';
 import 'package:ohmyuniversity/features/academics/domain/entities/exam_booking_history_entity.dart';
 import 'package:ohmyuniversity/features/academics/domain/repositories/academic_repository.dart';
 import 'package:ohmyuniversity/features/academics/domain/usecases/get_exam_booking_history_usecase.dart';
@@ -543,10 +542,12 @@ class _ImmediateAcademicRepository implements AcademicRepository {
   }
 
   @override
-  Future<List<ExamBookingEntity>> getAvailableExamBookings({
-    required int degreeCourseId,
-    required List<ExamBookingHistoryEntity> bookingHistory,
-  }) async {
+  Future<List<Map<String, dynamic>>> getBookableExamSessions() async {
+    return const [];
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> getActiveExamBookings() async {
     return const [];
   }
 
