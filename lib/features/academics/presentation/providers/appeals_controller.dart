@@ -88,13 +88,38 @@ class AppealsController extends Notifier<AppealsState> {
           _bookingKey(booking['adsceId'], booking['appId']): booking,
       };
 
+      final lecturerByAdsceId = <Object?, String>{
+        for (final session in bookableSessions)
+          if ((session['docente'] as String? ?? '').trim().isNotEmpty)
+            session['adsceId']: session['docente'] as String,
+      };
+
       final exams = bookableSessions
           .map(
             (session) =>
                 _mapBookableSession(session, coursesByCode, bookingsByKey),
           )
-          .toList(growable: false)
-        ..sort((a, b) => a.date.compareTo(b.date));
+          .toList();
+
+      final keysGiaPresenti = bookableSessions
+          .map((session) => _bookingKey(session['adsceId'], session['appId']))
+          .toSet();
+      final extraBookings = activeBookings
+          .where(
+            (booking) => !keysGiaPresenti.contains(
+              _bookingKey(booking['adsceId'], booking['appId']),
+            ),
+          )
+          .map(
+            (booking) => _mapActiveBooking(
+              booking,
+              coursesByCode,
+              lecturerByAdsceId,
+            ),
+          );
+
+      exams.addAll(extraBookings);
+      exams.sort((a, b) => a.date.compareTo(b.date));
 
       state = state.copyWith(
         examBookings: exams,
@@ -160,6 +185,52 @@ class AppealsController extends Notifier<AppealsState> {
       credits: course?.credits ?? 0,
       year: course?.year ?? 0,
     );
+  }
+
+  ExamBookingEntity _mapActiveBooking(
+    Map<String, dynamic> booking,
+    Map<String, AcademicExamCourseEntity> coursesByCode,
+    Map<Object?, String> lecturerByAdsceId,
+  ) {
+    final courseCode = (booking['adStuCod'] as String? ?? '').trim();
+    final course = coursesByCode[courseCode.toUpperCase()];
+    final examStart =
+        _parseCinecaDate(booking['dataOraTurno'] as String?) ??
+        DateTime.now();
+    final registrationEnd = _parseCinecaDate(
+      booking['dataFineIscr'] as String?,
+    );
+
+    return ExamBookingEntity(
+      id: (booking['applistaId'] ?? examStart.toIso8601String()).toString(),
+      courseName:
+          course?.name ??
+          _textOrFallback(booking['adStuDes'], 'Corso non disponibile'),
+      courseAcronym: courseCode.isEmpty ? 'N/D' : courseCode,
+      professor:
+          lecturerByAdsceId[booking['adsceId']] ?? 'Docente non disponibile',
+      date: examStart,
+      time: _timeFromDateTimeString(
+        booking['dataOraTurno'] as String?,
+        examStart,
+      ),
+      location: _textOrFallback(booking['aulaDes'], 'Aula non disponibile'),
+      building: 'Edificio non disponibile',
+      enrollDeadline: registrationEnd ?? examStart,
+      spotsTotal: 0,
+      spotsLeft: (booking['numIscritti'] as num?)?.toInt() ?? 0,
+      status: ExamBookingStatus.booked,
+      credits: course?.credits ?? 0,
+      year: course?.year ?? 0,
+    );
+  }
+
+  String _timeFromDateTimeString(String? full, DateTime fallback) {
+    final parts = full?.trim().split(' ');
+    if (parts != null && parts.length > 1 && parts[1].length >= 5) {
+      return parts[1].substring(0, 5);
+    }
+    return '${fallback.hour.toString().padLeft(2, '0')}:${fallback.minute.toString().padLeft(2, '0')}';
   }
 
   ExamBookingStatus _statusFromCineca(
