@@ -15,6 +15,7 @@ class CareerProfileEntity {
     required this.courseDurationYears,
     required this.academicYear,
     required this.active,
+    required this.graduated,
   });
 
   final String universityId;
@@ -32,4 +33,5 @@ class CareerProfileEntity {
   final int? courseDurationYears;
   final int? academicYear;
   final bool active;
+  final bool graduated;
 }

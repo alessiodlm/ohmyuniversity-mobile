@@ -6,7 +6,6 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../domain/entities/career_snapshot_entity.dart';
 import '../../domain/entities/academic_exam_course_entity.dart';
 import '../../domain/entities/academic_statistics_entity.dart';
-import '../../domain/entities/exam_booking_entity.dart';
 import '../../domain/entities/exam_booking_history_entity.dart';
 import '../../domain/exceptions/career_data_exception.dart';
 import '../../domain/repositories/academic_repository.dart';
@@ -59,43 +58,13 @@ class AcademicRepositoryImpl implements AcademicRepository {
   }
 
   @override
-  Future<List<ExamBookingEntity>> getAvailableExamBookings({
-    required int degreeCourseId,
-    required List<ExamBookingHistoryEntity> bookingHistory,
-  }) async {
-    final bookingsByActivityId = <int, ExamBookingHistoryEntity>{};
-    for (final booking in bookingHistory) {
-      final activityId = booking.activityId;
-      if (activityId != null) {
-        bookingsByActivityId[activityId] = booking;
-      }
-    }
+  Future<List<Map<String, dynamic>>> getBookableExamSessions() {
+    return _dataSource.getBookableExamSessions();
+  }
 
-    final appealsById = <String, ExamBookingEntity>{};
-    CareerDataException? firstError;
-    var successfulRequests = 0;
-    for (final booking in bookingsByActivityId.values) {
-      try {
-        final appeals = await _dataSource.getAvailableExamBookings(
-          degreeCourseId: degreeCourseId,
-          booking: booking,
-        );
-        successfulRequests++;
-        for (final appeal in appeals) {
-          appealsById[appeal.id] = appeal;
-        }
-      } on CareerDataException catch (error) {
-        firstError ??= error;
-      }
-    }
-
-    if (successfulRequests == 0 && firstError != null) {
-      throw firstError;
-    }
-
-    final sortedAppeals = appealsById.values.toList()
-      ..sort((a, b) => a.date.compareTo(b.date));
-    return sortedAppeals;
+  @override
+  Future<List<Map<String, dynamic>>> getActiveExamBookings() {
+    return _dataSource.getActiveExamBookings();
   }
 
   @override

@@ -103,6 +103,8 @@ class _UniversityLoginFormState extends ConsumerState<UniversityLoginForm> {
             ),
           );
 
+      ref.invalidate(authSessionProvider);
+
       try {
         await ref.read(getExamBookingHistoryUseCaseProvider).call(password);
       } catch (_) {

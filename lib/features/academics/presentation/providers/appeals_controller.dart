@@ -1,9 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../domain/entities/academic_exam_course_entity.dart';
 import '../../domain/entities/exam_booking_entity.dart';
-import '../../domain/entities/exam_booking_history_entity.dart';
 import 'career_data_providers.dart';
 import 'career_provider.dart';
 
@@ -25,10 +23,6 @@ class AppealsState {
     this.isLoading = false,
     this.loaded = false,
     this.error,
-    this.bookingHistory = const [],
-    this.isHistoryLoading = false,
-    this.historyLoaded = false,
-    this.historyError,
   });
 
   final String searchQuery;
@@ -38,10 +32,6 @@ class AppealsState {
   final bool isLoading;
   final bool loaded;
   final String? error;
-  final List<ExamBookingHistoryEntity> bookingHistory;
-  final bool isHistoryLoading;
-  final bool historyLoaded;
-  final String? historyError;
 
   AppealsState copyWith({
     String? searchQuery,
@@ -52,11 +42,6 @@ class AppealsState {
     bool? loaded,
     String? error,
     bool clearError = false,
-    List<ExamBookingHistoryEntity>? bookingHistory,
-    bool? isHistoryLoading,
-    bool? historyLoaded,
-    String? historyError,
-    bool clearHistoryError = false,
   }) {
     return AppealsState(
       searchQuery: searchQuery ?? this.searchQuery,
@@ -66,12 +51,6 @@ class AppealsState {
       isLoading: isLoading ?? this.isLoading,
       loaded: loaded ?? this.loaded,
       error: clearError ? null : error ?? this.error,
-      bookingHistory: bookingHistory ?? this.bookingHistory,
-      isHistoryLoading: isHistoryLoading ?? this.isHistoryLoading,
-      historyLoaded: historyLoaded ?? this.historyLoaded,
-      historyError: clearHistoryError
-          ? null
-          : historyError ?? this.historyError,
     );
   }
 }
@@ -91,39 +70,61 @@ class AppealsController extends Notifier<AppealsState> {
   Future<void> loadAvailableAppeals() async {
     state = state.copyWith(isLoading: true, clearError: true);
     try {
-      final session = await ref.read(authRepositoryProvider).currentSession();
-      final degreeCourseId = session?.activeProfile?.degreeCourseId;
-      if (degreeCourseId == null) {
-        state = state.copyWith(
-          isLoading: false,
-          loaded: true,
-          error: 'Profilo carriera non disponibile.',
-        );
-        return;
-      }
+      final results = await Future.wait([
+        ref.read(getBookableExamSessionsUseCaseProvider).call(),
+        ref.read(getActiveExamBookingsUseCaseProvider).call(),
+      ]);
+      final bookableSessions = results[0];
+      final activeBookings = results[1];
 
-      final bookingHistory = await ref
-          .read(getExamBookingHistoryUseCaseProvider)
-          .cached();
-      if (bookingHistory == null) {
-        state = state.copyWith(
-          isLoading: false,
-          loaded: true,
-          error:
-              'Appelli non disponibili. Effettua nuovamente l’accesso per aggiornare lo storico.',
-        );
-        return;
-      }
+      final coursesByCode = <String, AcademicExamCourseEntity>{
+        for (final course in ref.read(careerProvider).courses)
+          if (course.code.trim().isNotEmpty)
+            course.code.trim().toUpperCase(): course,
+      };
 
-      final exams = await ref
-          .read(getAvailableExamBookingsUseCaseProvider)
-          .call(degreeCourseId: degreeCourseId, bookingHistory: bookingHistory);
+      final bookingsByKey = <String, Map<String, dynamic>>{
+        for (final booking in activeBookings)
+          _bookingKey(booking['adsceId'], booking['appId']): booking,
+      };
+
+      final lecturerByAdsceId = <Object?, String>{
+        for (final session in bookableSessions)
+          if ((session['docente'] as String? ?? '').trim().isNotEmpty)
+            session['adsceId']: session['docente'] as String,
+      };
+
+      final exams = bookableSessions
+          .map(
+            (session) =>
+                _mapBookableSession(session, coursesByCode, bookingsByKey),
+          )
+          .toList();
+
+      final keysGiaPresenti = bookableSessions
+          .map((session) => _bookingKey(session['adsceId'], session['appId']))
+          .toSet();
+      final extraBookings = activeBookings
+          .where(
+            (booking) => !keysGiaPresenti.contains(
+              _bookingKey(booking['adsceId'], booking['appId']),
+            ),
+          )
+          .map(
+            (booking) => _mapActiveBooking(
+              booking,
+              coursesByCode,
+              lecturerByAdsceId,
+            ),
+          );
+
+      exams.addAll(extraBookings);
+      exams.sort((a, b) => a.date.compareTo(b.date));
+
       state = state.copyWith(
         examBookings: exams,
-        bookingHistory: bookingHistory,
         isLoading: false,
         loaded: true,
-        historyLoaded: true,
       );
     } catch (error) {
       state = state.copyWith(
@@ -134,33 +135,150 @@ class AppealsController extends Notifier<AppealsState> {
     }
   }
 
-  Future<void> loadBookingHistory() async {
-    state = state.copyWith(isHistoryLoading: true, clearHistoryError: true);
-    try {
-      final bookings = await ref
-          .read(getExamBookingHistoryUseCaseProvider)
-          .cached();
-      if (bookings == null) {
-        state = state.copyWith(
-          isHistoryLoading: false,
-          historyLoaded: false,
-          historyError:
-              'Storico non disponibile. Effettua nuovamente l’accesso.',
-        );
-        return;
-      }
-      state = state.copyWith(
-        bookingHistory: bookings,
-        isHistoryLoading: false,
-        historyLoaded: true,
-      );
-    } catch (error) {
-      state = state.copyWith(
-        isHistoryLoading: false,
-        historyLoaded: false,
-        historyError: error.toString(),
-      );
+  String _bookingKey(Object? adsceId, Object? appId) => '${adsceId}_$appId';
+
+  ExamBookingEntity _mapBookableSession(
+    Map<String, dynamic> session,
+    Map<String, AcademicExamCourseEntity> coursesByCode,
+    Map<String, Map<String, dynamic>> bookingsByKey,
+  ) {
+    final adCod = (session['adCod'] as String? ?? '').trim();
+    final course = coursesByCode[adCod.toUpperCase()];
+    final matchingBooking = bookingsByKey[_bookingKey(
+      session['adsceId'],
+      session['appId'],
+    )];
+    final isBooked = matchingBooking != null;
+
+    final registrationEnd = _parseCinecaDate(
+      session['dataFineIscr'] as String?,
+    );
+    final examStart =
+        _parseCinecaDate(
+          (matchingBooking?['dataOraTurno'] as String?) ??
+              session['dataInizioApp'] as String?,
+        ) ??
+        DateTime.now();
+
+    return ExamBookingEntity(
+      id: (session['appelloId'] ?? session['appId'] ?? examStart.toIso8601String())
+          .toString(),
+      courseName: course?.name ?? _textOrFallback(session['adDes'], 'Corso non disponibile'),
+      courseAcronym: adCod.isEmpty ? 'N/D' : adCod,
+      professor: _textOrFallback(session['docente'], 'Docente non disponibile'),
+      date: examStart,
+      time: _timeOf(session['oraEsa'] as String?, examStart),
+      location: _textOrFallback(
+        matchingBooking?['aulaDes'],
+        'Aula non disponibile',
+      ),
+      building: 'Edificio non disponibile',
+      enrollDeadline: registrationEnd ?? examStart,
+      spotsTotal: 0,
+      spotsLeft:
+          (matchingBooking?['numIscritti'] as num?)?.toInt() ??
+          (session['numIscritti'] as num?)?.toInt() ??
+          0,
+      status: isBooked
+          ? ExamBookingStatus.booked
+          : _statusFromCineca(session['stato'] as String?, registrationEnd),
+      credits: course?.credits ?? 0,
+      year: course?.year ?? 0,
+    );
+  }
+
+  ExamBookingEntity _mapActiveBooking(
+    Map<String, dynamic> booking,
+    Map<String, AcademicExamCourseEntity> coursesByCode,
+    Map<Object?, String> lecturerByAdsceId,
+  ) {
+    final courseCode = (booking['adStuCod'] as String? ?? '').trim();
+    final course = coursesByCode[courseCode.toUpperCase()];
+    final examStart =
+        _parseCinecaDate(booking['dataOraTurno'] as String?) ??
+        DateTime.now();
+    final registrationEnd = _parseCinecaDate(
+      booking['dataFineIscr'] as String?,
+    );
+
+    return ExamBookingEntity(
+      id: (booking['applistaId'] ?? examStart.toIso8601String()).toString(),
+      courseName:
+          course?.name ??
+          _textOrFallback(booking['adStuDes'], 'Corso non disponibile'),
+      courseAcronym: courseCode.isEmpty ? 'N/D' : courseCode,
+      professor:
+          lecturerByAdsceId[booking['adsceId']] ?? 'Docente non disponibile',
+      date: examStart,
+      time: _timeFromDateTimeString(
+        booking['dataOraTurno'] as String?,
+        examStart,
+      ),
+      location: _textOrFallback(booking['aulaDes'], 'Aula non disponibile'),
+      building: 'Edificio non disponibile',
+      enrollDeadline: registrationEnd ?? examStart,
+      spotsTotal: 0,
+      spotsLeft: (booking['numIscritti'] as num?)?.toInt() ?? 0,
+      status: ExamBookingStatus.booked,
+      credits: course?.credits ?? 0,
+      year: course?.year ?? 0,
+    );
+  }
+
+  String _timeFromDateTimeString(String? full, DateTime fallback) {
+    final parts = full?.trim().split(' ');
+    if (parts != null && parts.length > 1 && parts[1].length >= 5) {
+      return parts[1].substring(0, 5);
     }
+    return '${fallback.hour.toString().padLeft(2, '0')}:${fallback.minute.toString().padLeft(2, '0')}';
+  }
+
+  ExamBookingStatus _statusFromCineca(
+    String? cinecaStatus,
+    DateTime? registrationEnd,
+  ) {
+    final status = (cinecaStatus ?? '').trim().toUpperCase();
+    if (status == 'S' || status == 'CHIUSO') return ExamBookingStatus.closed;
+    if (registrationEnd == null) return ExamBookingStatus.open;
+    final remaining = registrationEnd.difference(DateTime.now());
+    if (remaining.isNegative) return ExamBookingStatus.closed;
+    return remaining.inDays <= 3
+        ? ExamBookingStatus.closing
+        : ExamBookingStatus.open;
+  }
+
+  String _timeOf(String? rawTime, DateTime fallback) {
+    final text = rawTime?.trim();
+    if (text != null && text.isNotEmpty) return text;
+    return '${fallback.hour.toString().padLeft(2, '0')}:${fallback.minute.toString().padLeft(2, '0')}';
+  }
+
+  String _textOrFallback(Object? value, String fallback) {
+    final text = value as String?;
+    if (text == null || text.trim().isEmpty) return fallback;
+    return text.trim();
+  }
+
+  DateTime? _parseCinecaDate(String? value) {
+    if (value == null || value.isEmpty) return null;
+    final normalized = value.trim();
+    final parts = normalized.split(' ');
+    final date = parts.first.split('/');
+    if (date.length != 3) return DateTime.tryParse(normalized);
+    final time = parts.length > 1 ? parts[1].split(':') : const <String>[];
+    final year = int.tryParse(date[2]);
+    final month = int.tryParse(date[1]);
+    final day = int.tryParse(date[0]);
+    if (year == null || month == null || day == null) {
+      return DateTime.tryParse(normalized);
+    }
+    return DateTime(
+      year,
+      month,
+      day,
+      time.isNotEmpty ? int.tryParse(time[0]) ?? 0 : 0,
+      time.length > 1 ? int.tryParse(time[1]) ?? 0 : 0,
+    );
   }
 }
 

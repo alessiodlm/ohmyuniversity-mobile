@@ -1,7 +1,6 @@
 import 'package:dio/dio.dart';
 
 import '../../domain/entities/course_questionnaire_entity.dart';
-import '../../domain/entities/exam_booking_entity.dart';
 import '../../domain/entities/exam_booking_history_entity.dart';
 import '../../domain/exceptions/career_data_exception.dart';
 import '../models/career_api_models.dart';
@@ -82,13 +81,7 @@ class AcademicRemoteDataSource {
     }
   }
 
-  Future<List<ExamBookingEntity>> getAvailableExamBookings({
-    required int degreeCourseId,
-    required ExamBookingHistoryEntity booking,
-  }) async {
-    final activityId = booking.activityId;
-    if (activityId == null) return const [];
-
+  Future<List<Map<String, dynamic>>> getBookableExamSessions() async {
     try {
       final response = await _dio.get<Map<String, dynamic>>(
         '/v1/exams/bookable',
@@ -96,14 +89,30 @@ class AcademicRemoteDataSource {
       final appeals = response.data?['appelli'] as List<dynamic>? ?? [];
       return appeals
           .whereType<Map<String, dynamic>>()
-          .where((json) => (json['adId'] as num?)?.toInt() == activityId)
-          .map((json) => _mapAppeal(json, booking))
           .toList(growable: false);
     } on DioException catch (error) {
       throw CareerDataException(switch (error.response?.statusCode) {
-        401 => 'Appelli non recuperabili per questo insegnamento.',
+        401 => "Sessione scaduta. Effettua nuovamente l'accesso.",
         503 => 'Gli appelli non sono momentaneamente disponibili.',
-        _ => 'Impossibile caricare gli appelli.',
+        _ => 'Impossibile caricare gli appelli disponibili.',
+      });
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getActiveExamBookings() async {
+    try {
+      final response = await _dio.get<Map<String, dynamic>>(
+        '/v1/exams/bookings',
+      );
+      final bookings = response.data?['prenotazioni'] as List<dynamic>? ?? [];
+      return bookings
+          .whereType<Map<String, dynamic>>()
+          .toList(growable: false);
+    } on DioException catch (error) {
+      throw CareerDataException(switch (error.response?.statusCode) {
+        401 => "Sessione scaduta. Effettua nuovamente l'accesso.",
+        503 => 'Le prenotazioni non sono momentaneamente disponibili.',
+        _ => 'Impossibile caricare le prenotazioni attive.',
       });
     }
   }
@@ -168,46 +177,6 @@ class AcademicRemoteDataSource {
     );
   }
 
-  ExamBookingEntity _mapAppeal(
-    Map<String, dynamic> json,
-    ExamBookingHistoryEntity booking,
-  ) {
-    final start =
-        _parseDateTime(json['dataInizioApp'] as String?) ?? DateTime.now();
-    final deadline = _parseDateTime(json['dataFineIscr'] as String?) ?? start;
-    final state = (json['stato'] as String? ?? '').toUpperCase();
-    final booked = state == 'P' || state == 'PRENOTATO';
-    final bookable = state.isEmpty || state == 'A' || state == 'APERTO';
-
-    return ExamBookingEntity(
-      id:
-          (json['appId'] ??
-                  json['appelloId'] ??
-                  '${booking.activityId}-${start.toIso8601String()}')
-              .toString(),
-      courseName: _textOrFallback(json['adDes'], booking.courseName),
-      courseAcronym: _textOrFallback(json['adCod'], booking.courseCode),
-      professor: _textOrFallback(json['docente'], 'Docente non disponibile'),
-      date: start,
-      time: _textOrFallback(
-        json['oraEsa'],
-        '${start.hour.toString().padLeft(2, '0')}:${start.minute.toString().padLeft(2, '0')}',
-      ),
-      location: _textOrFallback(json['aulaDes'], 'Aula non disponibile'),
-      building: 'Edificio non disponibile',
-      enrollDeadline: deadline,
-      spotsTotal: 0,
-      spotsLeft: 0,
-      status: booked
-          ? ExamBookingStatus.booked
-          : bookable
-          ? _statusForDeadline(deadline)
-          : ExamBookingStatus.closed,
-      credits: booking.credits.round(),
-      year: 0,
-    );
-  }
-
   DateTime? _parseDateTime(String? value) {
     if (value == null || value.isEmpty) return null;
     final normalized = value.trim();
@@ -234,14 +203,6 @@ class AcademicRemoteDataSource {
     final text = value as String?;
     if (text == null || text.trim().isEmpty) return fallback;
     return text.trim();
-  }
-
-  ExamBookingStatus _statusForDeadline(DateTime deadline) {
-    final remaining = deadline.difference(DateTime.now());
-    if (remaining.isNegative) return ExamBookingStatus.closed;
-    return remaining.inDays <= 3
-        ? ExamBookingStatus.closing
-        : ExamBookingStatus.open;
   }
 
   String _messageFor(DioException error) {

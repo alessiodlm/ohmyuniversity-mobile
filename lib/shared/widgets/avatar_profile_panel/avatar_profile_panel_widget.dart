@@ -225,9 +225,6 @@ class _AvatarProfilePanelWidgetState extends State<AvatarProfilePanelWidget>
       widget.accounts.where((a) => a.isCurrent).firstOrNull ??
       widget.accounts.firstOrNull;
 
-  List<AccountEntry> get _secondaryAccounts =>
-      widget.accounts.where((a) => !a.isCurrent).toList();
-
   // ── Overlay management ─────────────────────────────────────────────────
 
   void _toggle() {
@@ -303,8 +300,7 @@ class _AvatarProfilePanelWidgetState extends State<AvatarProfilePanelWidget>
 
   Widget _buildAnimatedPanel() {
     Widget panel = _PanelContent(
-      currentAccount: _currentAccount,
-      secondaryAccounts: _secondaryAccounts,
+      accounts: widget.accounts,
       darkTheme: widget.darkTheme,
       position: widget.position,
       showSettings: widget.showSettings,
@@ -400,8 +396,7 @@ class _AvatarProfilePanelWidgetState extends State<AvatarProfilePanelWidget>
 
 class _PanelContent extends StatelessWidget {
   const _PanelContent({
-    required this.currentAccount,
-    required this.secondaryAccounts,
+    required this.accounts,
     required this.darkTheme,
     required this.position,
     required this.showSettings,
@@ -414,8 +409,7 @@ class _PanelContent extends StatelessWidget {
     required this.onAdd,
   });
 
-  final AccountEntry? currentAccount;
-  final List<AccountEntry> secondaryAccounts;
+  final List<AccountEntry> accounts;
   final bool darkTheme;
   final PanelPosition position;
   final bool showSettings;
@@ -475,10 +469,7 @@ class _PanelContent extends StatelessWidget {
     );
   }
 
-  // ── Header ───────────────────────────────────────────────────────────
-
-  Widget _buildHeader(BuildContext context) {
-    final acc = currentAccount!;
+  Widget _buildCurrentItem(BuildContext context, AccountEntry acc) {
     final isLeft = position == PanelPosition.left;
 
     final avatar = CustomAvatarWidget(
@@ -576,9 +567,7 @@ class _PanelContent extends StatelessWidget {
     );
   }
 
-  // ── Secondary account item ───────────────────────────────────────────
-
-  Widget _buildAccountItem(BuildContext context, AccountEntry acc) {
+  Widget _buildOtherItem(BuildContext context, AccountEntry acc) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -613,11 +602,6 @@ class _PanelContent extends StatelessWidget {
                         fontWeight: FontWeight.w600,
                         color: _textColor,
                       ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    Text(
-                      acc.email,
-                      style: TextStyle(fontSize: 10.5, color: _subtextColor),
                       overflow: TextOverflow.ellipsis,
                     ),
                     Text(
@@ -711,17 +695,12 @@ class _PanelContent extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // ── Header ─────────────────────────────────────────────
-              if (currentAccount != null) _buildHeader(context),
-
-              _divider,
-
-              // ── Secondary accounts ─────────────────────────────────
-              if (secondaryAccounts.isNotEmpty) ...[
+              // ── Accounts ──
+              if (accounts.isNotEmpty) ...[
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
                   child: Text(
-                    'Altri account',
+                    'ALTRI ACCOUNT',
                     style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
@@ -730,7 +709,11 @@ class _PanelContent extends StatelessWidget {
                     ),
                   ),
                 ),
-                ...secondaryAccounts.map((a) => _buildAccountItem(context, a)),
+                ...accounts.map(
+                  (acc) => acc.isCurrent
+                      ? _buildCurrentItem(context, acc)
+                      : _buildOtherItem(context, acc),
+                ),
                 _divider,
               ],
 

@@ -8,7 +8,6 @@ import '../../../../shared/widgets/custom_card/custom_card_widget.dart';
 import '../../../../shared/widgets/custom_tab/custom_tab_widget.dart';
 import '../../../../shared/widgets/custom_toast/custom_toast_service.dart';
 import '../../domain/entities/exam_booking_entity.dart';
-import '../../domain/entities/exam_booking_history_entity.dart';
 import '../providers/appeals_controller.dart';
 import '../providers/career_provider.dart';
 import '../providers/questionnaires_provider.dart';
@@ -38,20 +37,9 @@ class _AppealsOverviewViewState extends ConsumerState<AppealsOverviewView> {
     final exams = ref.watch(visibleExamBookingsProvider);
     final recommendations = ref.watch(recommendedExamBookingsProvider);
     final career = ref.watch(careerProvider);
-    final query = state.searchQuery.trim().toLowerCase();
-    final history = state.bookingHistory
-        .where(
-          (booking) =>
-              query.isEmpty ||
-              booking.courseName.toLowerCase().contains(query) ||
-              booking.courseCode.toLowerCase().contains(query),
-        )
-        .toList(growable: false);
-    final resultCount = switch (state.filter) {
-      AppealsFilter.booked => history.length,
-      AppealsFilter.recommended => recommendations.length,
-      _ => exams.length,
-    };
+    final resultCount = state.filter == AppealsFilter.recommended
+        ? recommendations.length
+        : exams.length;
 
     return ListView(
       key: const Key('appeals-overview-list'),
@@ -98,8 +86,9 @@ class _AppealsOverviewViewState extends ConsumerState<AppealsOverviewView> {
           tabStyle: TabStyle.pill,
           size: TabSize.sm,
           fullWidth: true,
-          onTabChange: (id) =>
-              _changeFilter(ref, AppealsFilter.values.byName(id)),
+          onTabChange: (id) => ref
+              .read(appealsControllerProvider.notifier)
+              .setFilter(AppealsFilter.values.byName(id)),
         ),
         const SizedBox(height: 10),
         Text(
@@ -142,23 +131,6 @@ class _AppealsOverviewViewState extends ConsumerState<AppealsOverviewView> {
                 ),
               ),
           ],
-        ] else if (state.filter == AppealsFilter.booked) ...[
-          if (state.isHistoryLoading)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 40),
-              child: Center(child: CircularProgressIndicator()),
-            )
-          else if (state.historyError != null)
-            _HistoryError(message: state.historyError!)
-          else if (history.isEmpty)
-            const _EmptyAppeals(message: 'Nessuna prenotazione trovata.')
-          else
-            ...history.map(
-              (booking) => Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: _BookingHistoryCard(booking: booking),
-              ),
-            ),
         ] else if (state.isLoading)
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 40),
@@ -173,8 +145,8 @@ class _AppealsOverviewViewState extends ConsumerState<AppealsOverviewView> {
           )
         else if (exams.isEmpty)
           _EmptyAppeals(
-            message: state.filter == AppealsFilter.recommended
-                ? 'Nessun appello consigliato tra gli esami ancora da superare.'
+            message: state.filter == AppealsFilter.booked
+                ? 'Nessuna prenotazione trovata.'
                 : 'Nessun appello trovato con i filtri selezionati.',
           )
         else ...[
@@ -216,20 +188,6 @@ class _AppealsOverviewViewState extends ConsumerState<AppealsOverviewView> {
         ),
       ],
     );
-  }
-
-  Future<void> _changeFilter(WidgetRef ref, AppealsFilter filter) async {
-    final controller = ref.read(appealsControllerProvider.notifier);
-    if (filter != AppealsFilter.booked) {
-      controller.setFilter(filter);
-      return;
-    }
-    if (ref.read(appealsControllerProvider).historyLoaded) {
-      controller.setFilter(filter);
-      return;
-    }
-    controller.setFilter(AppealsFilter.booked);
-    await controller.loadBookingHistory();
   }
 
   Future<void> _requestBooking(
@@ -505,83 +463,6 @@ class _EmptyAppeals extends StatelessWidget {
         ],
       ),
     );
-  }
-}
-
-class _BookingHistoryCard extends StatelessWidget {
-  const _BookingHistoryCard({required this.booking});
-
-  final ExamBookingHistoryEntity booking;
-
-  @override
-  Widget build(BuildContext context) {
-    final date = booking.examDate ?? booking.bookingDate;
-    final status = booking.absent
-        ? 'Assente'
-        : booking.withdrawn
-        ? 'Ritirato'
-        : booking.grade != null
-        ? '${booking.grade}/30'
-        : booking.passed
-        ? 'Superato'
-        : 'Prenotato';
-
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.colorNeutral200),
-      ),
-      child: Row(
-        children: [
-          const Icon(
-            LucideIcons.calendarCheck,
-            size: 20,
-            color: AppColors.colorPrimaryDark,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  booking.courseName,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontWeight: FontWeight.w800),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  [
-                    if (booking.courseCode.isNotEmpty) booking.courseCode,
-                    if (booking.credits > 0)
-                      '${_formatCredits(booking.credits)} CFU',
-                    if (date != null) _formatDate(date),
-                  ].join(' · '),
-                  style: const TextStyle(
-                    color: AppColors.colorNeutral500,
-                    fontSize: 11.5,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          Text(status, style: const TextStyle(fontWeight: FontWeight.w700)),
-        ],
-      ),
-    );
-  }
-
-  String _formatDate(DateTime date) {
-    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
-  }
-
-  String _formatCredits(double credits) {
-    return credits == credits.roundToDouble()
-        ? credits.toInt().toString()
-        : credits.toStringAsFixed(1);
   }
 }
 

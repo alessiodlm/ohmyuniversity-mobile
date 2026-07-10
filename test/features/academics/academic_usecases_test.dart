@@ -3,13 +3,13 @@ import 'package:ohmyuniversity/features/academics/domain/entities/academic_stati
 import 'package:ohmyuniversity/features/academics/domain/entities/career_snapshot_entity.dart';
 import 'package:ohmyuniversity/features/academics/domain/entities/exam_appeal_entity.dart';
 import 'package:ohmyuniversity/features/academics/domain/entities/exam_appeal_month_entity.dart';
-import 'package:ohmyuniversity/features/academics/domain/entities/exam_booking_entity.dart';
 import 'package:ohmyuniversity/features/academics/domain/entities/exam_booking_history_entity.dart';
 import 'package:ohmyuniversity/features/academics/domain/entities/tuition_fee_entity.dart';
 import 'package:ohmyuniversity/features/academics/domain/entities/tuition_snapshot_entity.dart';
 import 'package:ohmyuniversity/features/academics/domain/repositories/academic_repository.dart';
 import 'package:ohmyuniversity/features/academics/domain/repositories/tuition_repository.dart';
-import 'package:ohmyuniversity/features/academics/domain/usecases/get_available_exam_bookings_usecase.dart';
+import 'package:ohmyuniversity/features/academics/domain/usecases/get_active_exam_bookings_usecase.dart';
+import 'package:ohmyuniversity/features/academics/domain/usecases/get_bookable_exam_sessions_usecase.dart';
 import 'package:ohmyuniversity/features/academics/domain/usecases/get_exam_booking_history_usecase.dart';
 import 'package:ohmyuniversity/features/academics/domain/usecases/get_tuition_snapshot_usecase.dart';
 import 'package:ohmyuniversity/features/academics/domain/usecases/get_visible_exam_appeal_months_usecase.dart';
@@ -50,21 +50,21 @@ void main() {
     expect(result, const [ExamAppealMonthEntity(month: 9, year: 2026)]);
   });
 
-  test('academic booking use cases delegate to repository', () async {
+  test('bookable/active booking use cases delegate to repository', () async {
     final repository = _AcademicRepositoryFake();
-    final booking = await GetAvailableExamBookingsUseCase(repository).call(
-      degreeCourseId: 42,
-      bookingHistory: [_history],
-    );
+    final bookable = await GetBookableExamSessionsUseCase(repository).call();
+    final activeBookings = await GetActiveExamBookingsUseCase(
+      repository,
+    ).call();
     final history = await GetExamBookingHistoryUseCase(
       repository,
     ).call('secret');
     final cached = await GetExamBookingHistoryUseCase(repository).cached();
 
-    expect(booking.single.id, 'booking-1');
+    expect(bookable.single['adCod'], 'MAT01');
+    expect(activeBookings.single['adsceId'], 10);
     expect(history.single.courseName, 'Analisi');
     expect(cached, isNotNull);
-    expect(repository.degreeCourseId, 42);
     expect(repository.password, 'secret');
   });
 
@@ -105,34 +105,21 @@ const _history = ExamBookingHistoryEntity(
   withdrawn: false,
 );
 
-final _booking = ExamBookingEntity(
-  id: 'booking-1',
-  courseName: 'Analisi',
-  courseAcronym: 'ANA',
-  professor: 'Prof. Rossi',
-  date: DateTime(2026, 7, 10),
-  time: '09:00',
-  location: 'Aula 1',
-  building: 'Edificio A',
-  enrollDeadline: DateTime(2026, 7, 3),
-  spotsTotal: 100,
-  spotsLeft: 12,
-  status: ExamBookingStatus.open,
-  credits: 9,
-  year: 1,
-);
-
 class _AcademicRepositoryFake implements AcademicRepository {
-  int? degreeCourseId;
   String? password;
 
   @override
-  Future<List<ExamBookingEntity>> getAvailableExamBookings({
-    required int degreeCourseId,
-    required List<ExamBookingHistoryEntity> bookingHistory,
-  }) async {
-    this.degreeCourseId = degreeCourseId;
-    return [_booking];
+  Future<List<Map<String, dynamic>>> getBookableExamSessions() async {
+    return const [
+      {'adCod': 'MAT01', 'adDes': 'Analisi', 'adsceId': 10, 'appId': 1},
+    ];
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> getActiveExamBookings() async {
+    return const [
+      {'adsceId': 10, 'appId': 1, 'adStuCod': 'MAT01'},
+    ];
   }
 
   @override

@@ -91,6 +91,7 @@ class CareerProfileModel extends CareerProfileEntity {
     required super.courseDurationYears,
     required super.academicYear,
     required super.active,
+    required super.graduated,
   });
 
   factory CareerProfileModel.fromJson(Map<String, dynamic> json) {
@@ -110,6 +111,7 @@ class CareerProfileModel extends CareerProfileEntity {
       courseDurationYears: (json['durataAnni'] as num?)?.toInt(),
       academicYear: (json['annoAccademico'] as num?)?.toInt(),
       active: json['attivo'] as bool? ?? false,
+      graduated: json['laureato'] as bool? ?? false,
     );
   }
 
@@ -130,6 +132,7 @@ class CareerProfileModel extends CareerProfileEntity {
       courseDurationYears: entity.courseDurationYears,
       academicYear: entity.academicYear,
       active: entity.active,
+      graduated: entity.graduated,
     );
   }
 
@@ -149,6 +152,7 @@ class CareerProfileModel extends CareerProfileEntity {
     int? courseDurationYears,
     int? academicYear,
     bool? active,
+    bool? graduated,
   }) {
     return CareerProfileModel(
       universityId: universityId ?? this.universityId,
@@ -167,6 +171,7 @@ class CareerProfileModel extends CareerProfileEntity {
       courseDurationYears: courseDurationYears ?? this.courseDurationYears,
       academicYear: academicYear ?? this.academicYear,
       active: active ?? this.active,
+      graduated: graduated ?? this.graduated,
     );
   }
 
@@ -186,5 +191,6 @@ class CareerProfileModel extends CareerProfileEntity {
     'durataAnni': courseDurationYears,
     'annoAccademico': academicYear,
     'attivo': active,
+    'laureato': graduated,
   };
 }
