@@ -5,7 +5,8 @@ import '../../data/datasources/academic_remote_datasource.dart';
 import '../../data/repositories/academic_repository_impl.dart';
 import '../../domain/entities/career_snapshot_entity.dart';
 import '../../domain/repositories/academic_repository.dart';
-import '../../domain/usecases/get_available_exam_bookings_usecase.dart';
+import '../../domain/usecases/get_active_exam_bookings_usecase.dart';
+import '../../domain/usecases/get_bookable_exam_sessions_usecase.dart';
 import '../../domain/usecases/get_career_snapshot_usecase.dart';
 import '../../domain/usecases/get_exam_booking_history_usecase.dart';
 
@@ -35,9 +36,16 @@ final getExamBookingHistoryUseCaseProvider =
       );
     });
 
-final getAvailableExamBookingsUseCaseProvider =
-    Provider<GetAvailableExamBookingsUseCase>((ref) {
-      return GetAvailableExamBookingsUseCase(
+final getBookableExamSessionsUseCaseProvider =
+    Provider<GetBookableExamSessionsUseCase>((ref) {
+      return GetBookableExamSessionsUseCase(
+        ref.watch(academicRepositoryProvider),
+      );
+    });
+
+final getActiveExamBookingsUseCaseProvider =
+    Provider<GetActiveExamBookingsUseCase>((ref) {
+      return GetActiveExamBookingsUseCase(
         ref.watch(academicRepositoryProvider),
       );
     });

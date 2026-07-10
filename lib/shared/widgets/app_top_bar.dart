@@ -38,15 +38,15 @@ class AppTopBar extends ConsumerWidget implements PreferredSizeWidget {
     final accounts = session == null
         ? const <AccountEntry>[]
         : session.profiles.map((profile) {
-      final isCurrent = careerAccountId(profile) == activeId;
-      return mapCareerProfileToAccountEntry(
-        profile,
-        fullName: session.fullName,
-        email: session.username,
-        isCurrent: isCurrent,
-        avatarSrc: photoSrc,
-      );
-    }).toList(growable: false);
+            final isCurrent = careerAccountId(profile) == activeId;
+            return mapCareerProfileToAccountEntry(
+              profile,
+              fullName: session.fullName,
+              email: session.username,
+              isCurrent: isCurrent,
+              avatarSrc: photoSrc,
+            );
+          }).toList(growable: false);
 
     return Material(
       color: AppColors.secondary.withValues(alpha: 0.38),
@@ -101,12 +101,13 @@ class AppTopBar extends ConsumerWidget implements PreferredSizeWidget {
                       ref.invalidate(remoteQuestionnairesProvider);
                       ref.invalidate(studentTimetablesProvider);
                       ref.invalidate(suggestedExamsProvider);
+
                       ref.invalidate(appealsControllerProvider);
-                      final appealsNotifier = ref.read(
-                        appealsControllerProvider.notifier,
+                      unawaited(
+                        ref
+                            .read(appealsControllerProvider.notifier)
+                            .loadAvailableAppeals(),
                       );
-                      unawaited(appealsNotifier.loadAvailableAppeals());
-                      unawaited(appealsNotifier.loadBookingHistory());
                     },
                     onLogoutClick: () async {
                       await ref
