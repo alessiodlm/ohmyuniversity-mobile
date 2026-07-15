@@ -1,7 +1,6 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:lottie/lottie.dart';
 
 import '../../../../../config/theme/app_colors.dart';
@@ -42,7 +41,7 @@ class DashboardEmptyState extends StatelessWidget {
           final lowerContentHeight = math.max(
             430.0,
             math.max(
-              constraints.maxHeight - 150,
+              constraints.maxHeight - 96,
               (occupiedRows * cellSize) + 48,
             ),
           );
@@ -60,8 +59,6 @@ class DashboardEmptyState extends StatelessWidget {
                 children: [
                   const HomeWelcomeCard(),
                   const SizedBox(height: 18),
-                  const _HomeSetupBanner(),
-                  const SizedBox(height: 14),
                   SizedBox(
                     height: lowerContentHeight,
                     child: AnimatedSwitcher(
@@ -81,61 +78,6 @@ class DashboardEmptyState extends StatelessWidget {
             ),
           );
         },
-      ),
-    );
-  }
-}
-
-class _HomeSetupBanner extends StatelessWidget {
-  const _HomeSetupBanner();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: AppColors.colorWarningLight.withValues(alpha: 0.75),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.colorWarningShadow.withValues(alpha: 0.08),
-            blurRadius: 14,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(
-              color: AppColors.colorWarningLight.withValues(alpha: 0.35),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(
-              LucideIcons.construction,
-              size: 18,
-              color: AppColors.colorWarningDark,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              'Pagina in allestimento',
-              style: theme.textTheme.titleSmall?.copyWith(
-                color: AppColors.textPrimary,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

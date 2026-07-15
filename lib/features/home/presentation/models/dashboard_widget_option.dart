@@ -250,7 +250,6 @@ abstract final class DashboardWidgetOptions {
     weightedAverage,
     averagePair,
     calendarAgenda,
-    timetable,
     acquiredCredits,
     acquiredCreditsCompact,
     graduationProjection,

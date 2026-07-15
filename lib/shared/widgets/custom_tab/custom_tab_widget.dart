@@ -704,13 +704,15 @@ class _UnderlineTabState extends State<_UnderlineTab> {
                 bottom: -1,
                 left: 0,
                 right: 0,
-                child: Center(
+                child: AnimatedFractionallySizedBox(
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeOutCubic,
+                  alignment: Alignment.bottomCenter,
+                  widthFactor: isActive ? 1 : 0,
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
                     curve: Curves.easeOutCubic,
                     height: 2,
-                    // active → full width, idle → 0 width
-                    width: isActive ? double.infinity : 0,
                     decoration: BoxDecoration(
                       color: isActive ? accentColor : Colors.transparent,
                       borderRadius: const BorderRadius.vertical(

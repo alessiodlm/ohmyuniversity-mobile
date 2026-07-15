@@ -176,7 +176,8 @@ void main() {
       await _pumpLogin(tester, container: container);
 
       await tester.tap(find.text('SPID'));
-      await tester.pump();
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
       expect(find.byKey(const Key('spid-panel')), findsOneWidget);
 
       await tester.tap(find.byKey(const Key('spid-submit')));
@@ -192,7 +193,8 @@ void main() {
 
       container.read(toastServiceProvider.notifier).dismissAll();
       await tester.tap(find.text('CIE'));
-      await tester.pump();
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
       await tester.tap(find.byKey(const Key('cie-submit')));
       await tester.pump();
       expect(

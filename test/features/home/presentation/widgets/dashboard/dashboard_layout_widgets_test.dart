@@ -134,6 +134,7 @@ void main() {
 
     expect(find.text('Aggiungi alla home'), findsOneWidget);
     expect(find.text('Media aritmetica'), findsWidgets);
+    expect(find.text('Orari lezioni'), findsNothing);
 
     await tester.tap(find.text('Media aritmetica').first);
     await tester.pump();
@@ -159,7 +160,38 @@ void main() {
 
     await tester.pump(const Duration(milliseconds: 500));
 
-    expect(find.text('Pagina in allestimento'), findsOneWidget);
+    expect(find.text('Pagina in allestimento'), findsNothing);
+    expect(find.byKey(const Key('home-online-indicator')), findsOneWidget);
+    expect(find.byKey(const Key('home-greeting')), findsOneWidget);
+    expect(find.byKey(const Key('home-greeting-hand')), findsOneWidget);
+    expect(
+      find.byKey(const Key('dashboard-widget-picker-button')),
+      findsNothing,
+    );
+
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.byType(DashboardGrid)),
+    );
+    await tester.pump(const Duration(milliseconds: 900));
+    await gesture.up();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.text('Aggiungi alla home'), findsOneWidget);
+    Navigator.of(tester.element(find.byType(DashboardWidgetPicker))).pop();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(
+      find.byKey(const Key('dashboard-widget-picker-button')),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byKey(const Key('dashboard-edit-close-button')));
+    await tester.pump();
+
+    expect(
+      find.byKey(const Key('dashboard-widget-picker-button')),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull);
   });
 }

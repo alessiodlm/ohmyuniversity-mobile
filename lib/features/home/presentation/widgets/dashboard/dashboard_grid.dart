@@ -23,6 +23,7 @@ class _DashboardGridState extends State<DashboardGrid> {
 
   Timer? _longPressTimer;
   bool _isEditing = false;
+  bool _hasActivatedWidgetControls = false;
   int _nextWidgetId = 0;
   final List<DashboardWidgetItem> _items = [];
 
@@ -47,7 +48,10 @@ class _DashboardGridState extends State<DashboardGrid> {
         return;
       }
 
-      setState(() => _isEditing = true);
+      setState(() {
+        _hasActivatedWidgetControls = true;
+        _isEditing = true;
+      });
     });
   }
 
@@ -176,7 +180,10 @@ class _DashboardGridState extends State<DashboardGrid> {
 
   Future<void> _openWidgetPicker() async {
     _cancelLongPressTimer();
-    setState(() => _isEditing = true);
+    setState(() {
+      _hasActivatedWidgetControls = true;
+      _isEditing = true;
+    });
 
     final selectedWidget = await showModalBottomSheet<DashboardWidgetOption>(
       context: context,
@@ -213,6 +220,7 @@ class _DashboardGridState extends State<DashboardGrid> {
               right: 20,
               bottom: 78,
               child: FloatingActionButton.small(
+                key: const Key('dashboard-edit-close-button'),
                 heroTag: 'dashboard-edit-close',
                 backgroundColor: const Color(0xFFE84C4F),
                 foregroundColor: Colors.white,
@@ -222,11 +230,12 @@ class _DashboardGridState extends State<DashboardGrid> {
                 child: const Icon(LucideIcons.x),
               ),
             ),
-          if (_isEditing)
+          if (_hasActivatedWidgetControls)
             Positioned(
               right: 20,
               bottom: 24,
               child: FloatingActionButton.small(
+                key: const Key('dashboard-widget-picker-button'),
                 heroTag: 'dashboard-widget-picker',
                 backgroundColor: AppColors.background,
                 foregroundColor: AppColors.textPrimary,
